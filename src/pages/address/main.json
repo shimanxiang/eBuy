@@ -1,0 +1,10 @@
+{ 
+  "navigationBarTitleText": "新增收货地址",
+  "usingComponents": {
+    "van-field": "/static/vant/field/index",
+    "van-switch": "/static/vant/switch/index",
+    "van-cell": "/static/vant/cell/index",
+    "van-area": "/static/vant/area/index",
+    "van-overlay": "/static/vant/overlay/index"
+  }
+}

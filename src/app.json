@@ -1,0 +1,50 @@
+{
+  "pages": [
+    "pages/index/main",
+    "pages/shopcart/main",
+    "pages/self/main",
+    "pages/goodDetail/main",
+    "pages/comment/main",
+    "pages/search/main",
+    "pages/error/main",
+    "pages/category/main",
+    "pages/order/main",
+    "pages/address/main",
+    "pages/card/main",
+    "pages/receiveAddress/main",
+    "pages/searchFood/main",
+    "pages/allOrder/main"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "生鲜",
+    "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "backgroundColor": "#fff",
+    "borderStyle": "white",
+    "list": [{
+      "pagePath": "pages/index/main",
+      "iconPath": "static/images/tab_icon_home_de.png",
+      "selectedIconPath": "static/images/tab_icon_home.png",
+      "text": ""
+    },{
+      "pagePath": "pages/category/main",
+      "selectedIconPath": "static/images/tab_icon_sort_sel.png",
+      "iconPath": "static/images/tab_icon_sort_def.png",
+      "text": ""
+    },{
+      "pagePath": "pages/shopcart/main",
+      "selectedIconPath": "static/images/tab_icon_cart_sel.png",
+      "iconPath": "static/images/tab_icon_cart_def.png",
+      "text": ""
+    },{
+      "pagePath": "pages/self/main",
+      "selectedIconPath": "static/images/tab_icon_user_sel.png",
+      "iconPath": "static/images/tab_icon_user_def.png",
+      "text": ""
+    }],
+    "position": "bottom"
+  }
+}

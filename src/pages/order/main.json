@@ -1,0 +1,13 @@
+{ 
+    "navigationBarTitleText": "提交订单",
+    "usingComponents": {
+      "van-tab": "/static/vant/tab/index",
+      "van-tabs": "/static/vant/tabs/index",
+      "van-divider": "/static/vant/divider/index",
+      "van-action-sheet": "/static/vant/action-sheet/index",
+      "van-overlay": "/static/vant/overlay/index",
+      "van-checkbox": "/static/vant/checkbox/index",
+      "van-icon": "/static/vant/icon/index"
+    }
+}
+  

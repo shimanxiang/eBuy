@@ -1,0 +1,7 @@
+{ 
+    "usingComponents": {
+      "van-icon": "/static/vant/icon/index",
+      "van-rate": "/static/vant/rate/index"
+    }
+  }
+  
