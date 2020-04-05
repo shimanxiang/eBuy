@@ -2,50 +2,53 @@
   <div class="my-container ub-box ub-col">
     <image src="/static/images/BG.png" mode="aspectFill" class="bgImg"/>
     <dl class="ub-box z-padding-all-10-px account-info">
-      <dd class="ub-box ub-ver">
-         <image :src="userInfo.avatarUrl" class="head-img" mode="aspectFill"></image>
-      </dd>
+      <!-- <dd class="ub-box ub-ver">
+         
+      </dd> -->
       <dd class="ub-flex-1 z-font-size-18 ub-box ub-ver-v z-padding-h-10-px">
+        <image :src="userInfo.headImg" class="head-img" mode="aspectFill"></image>
         <ul v-if="isLogin===true" class="ub-box z-margin-left-10-px ub-col account-name">
-          <li class="z-font-size-16 z-margin-bottom-5-px">{{userInfo.nickName}}</li>
-          <li class="z-font-size-14 ">{{userInfo.province}} {{userInfo.city}} {{userInfo.gender}}</li>
+          <li class="z-font-size-16 z-margin-bottom-5-px">{{userInfo.nickName || '无'}}</li>
         </ul>
       </dd>
-      <dd class="z-font-size-18 z-color-333 ub-box ub-ver-v" v-if="isLogin===true">
-        <div @click.stop="clickSignIn()" class="exitBtn ub-box ub-ver">签到</div>
+      <dd class="z-font-size-18 z-color-333 ub-box ub-ver-v" v-if="isAuthorize===true">
+        <div @click.stop="clickSignIn()" class="exitBtn ub-box ub-ver">{{canSignIn ? '签到' : '已签到'}}</div>
       </dd>
       <dd class="z-font-size-18 z-color-333 ub-box ub-ver-v" v-else>
-        <!-- <div v-if="isLogin===false" class="exitBtn ub-box ub-ver" open-type="getUserInfo" @getuserinfo="onGetUserInfo">登录</div> -->
-        <button v-if="isLogin===false" class="loginBtn ub-box ub-ver" lang="zh_CN" open-type="getUserInfo" @getuserinfo="onGetUserInfo">登录</button>
+        <button v-if="isAuthorize===false" class="loginBtn ub-box ub-ver" lang="zh_CN" open-type="getUserInfo" @getuserinfo="onGetUserInfo">授权</button>
       </dd>
     </dl>
     <div class="discount-box">
       <ul class="list">
-        <li class="li-box" @click.stop="$openWin('/pages/card/main')" >
-          <span>12</span>
+        <li class="li-box" @click.stop="clickCoupon" >
+          <span class="couponTotalNum">{{couponTotalNum}}<i class="tip" v-if="couponNewNum > 0"></i></span>
           <p>优惠券</p>
         </li>
         <li class="li-box">
-          <span>{{signInNum}}</span>
+          <span>{{integral}}</span>
           <p>积分</p>
         </li>
       </ul>
     </div>
     <div class="ul-box">
       <ul class="list">
-        <li class="li-box" @click.stop="$openWin('/pages/allOrder/main?status=1')">
+        <li class="li-box" @click.stop="clickOrder(1)">
+          <van-tag round type="danger" v-if="waitPay > 0">{{waitPay}}</van-tag>
           <i class="icon-pay"></i>
           <p>待付款</p>
         </li>
-        <li class="li-box" @click.stop="$openWin('/pages/allOrder/main?status=2')">
+        <li class="li-box" @click.stop="clickOrder(2)">
+          <van-tag round type="danger" v-if="waitDeliver > 0">{{waitDeliver}}</van-tag>
           <i class="icon-recevie"></i>
           <p>待发货</p>
         </li>
-        <li class="li-box" @click.stop="$openWin('/pages/allOrder/main?status=3')">
+        <li class="li-box" @click.stop="clickOrder(3)">
+          <van-tag round type="danger" v-if="waitHarvest > 0">{{waitHarvest}}</van-tag>
           <i class="icon-confirmed"></i>
           <p>待收货</p>
         </li>
-        <li class="li-box" @click.stop="$openWin('/pages/allOrder/main?status=4')">
+        <li class="li-box" @click.stop="clickOrder(4)">
+          <van-tag round type="danger" v-if="waitComment > 0">{{waitComment}}</van-tag>
           <i class="icon-evaluate"></i>
           <p>待评价</p>
         </li>
@@ -61,15 +64,15 @@
         <p class="ub-box ub-ver">
         </p>
       </dd>
-      <dd class="ub-box ub-between z-margin-bottom-20-px">
+      <!-- <dd class="ub-box ub-between z-margin-bottom-20-px">
         <p class="ub-box ub-ver">
         <i class="icon-star"></i>
         <span class="z-font-size-12 my-setting-text">我的收藏</span>
         </p>
         <p class="ub-box ub-ver">
         </p>
-      </dd>
-      <dd @click.stop="gotoOrderList()" class="ub-box ub-between">
+      </dd> -->
+      <dd @click.stop="exitLogin()" class="ub-box ub-between">
         <p class="ub-box ub-ver">
         <i class="icon-tel"></i>
         <span class="z-font-size-12 my-setting-text">联系客服</span>
@@ -82,7 +85,7 @@
 </template>
 <script>
 
-import { apiLogin, apiCheckSignIn, apiSignIn } from '@/request/api.js'
+import { apiLogin, apiCheckSignIn, apiSignIn, apigetOpenId, apiQueryNum, apiUpdateUser } from '@/request/api.js'
 
 export default {
   computed: {
@@ -91,31 +94,136 @@ export default {
     },
     userInfo () {
       return this.$store.state.userInfo || wx.getStorageSync('userInfo')
+    },
+    openId () {
+      return this.$store.state.userInfo.openId
     }
   },
   data () {
     return {
+      couponNewNum: 0,
+      couponTotalNum: 0,
       loading: false,
-      signInNum: 0,
-      canSignIn: false
+      isAuthorize: false,
+      integral: 0,
+      waitComment: 0,
+      waitHarvest: 0,
+      waitDeliver: 0,
+      waitPay: 0,
+      canSignIn: false,
+      isSigned: false,
+      openId: ''
     }
   },
   methods: {
+    clickOrder (status) {
+      if (!this.isLogin) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none'
+        })
+      } else {
+        this.$openWin('/pages/allOrder/main?status=' + status)
+      }
+    },
     onGetUserInfo (e) {
-      this.login(e.mp.detail.userInfo)
+      if (!this.userInfo.openId) {
+        let _this = this
+        wx.login({
+          success (res) {
+            if (res.code) {
+              // 发起网络请求
+              _this.getOpenId(res.code, e.mp.detail.userInfo)
+            } else {
+              wx.showToast({
+                title: '登录失败！',
+                icon: 'none'
+              })
+            }
+          }
+        })
+      } else {
+        let data = e.mp.detail.userInfo
+        this.isAuthorize = true
+        this.updateUser(data.avatarUrl, data.nickName)
+        this.getNum()
+      }
+      this.checkSignIn()
+    },
+    async updateUser (headImg, nickName) {
+      let ret = await apiUpdateUser({
+        headImg: headImg,
+        nickName: nickName,
+        openId: this.openId
+      })
+      if (ret.data.resultCode === '000001') {
+        let userInfo = wx.getStorageSync('userInfo')
+        userInfo.headImg = headImg
+        userInfo.nickName = nickName
+        wx.removeStorageSync('userInfo')
+        wx.setStorageSync('userInfo', userInfo)
+        this.$store.commit('updateIsLogin', true)
+        this.$store.commit('updateUser', userInfo)
+      }
+    },
+    clickCoupon () {
+      if (this.isLogin) {
+        this.$openWin('/pages/card/main')
+      } else {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none'
+        })
+      }
+    },
+    async getNum () {
+      let ret = await apiQueryNum()
+      if (ret.data.resultCode === '000001') {
+        this.couponNewNum = ret.data.resultObject.couponNewNum
+        this.couponTotalNum = ret.data.resultObject.couponTotalNum
+        this.integral = ret.data.resultObject.integral
+        this.waitComment = ret.data.resultObject.orderStatusWaitComment || 0
+        this.waitDeliver = ret.data.resultObject.orderStatusWaitDeliver || 0
+        this.waitHarvest = ret.data.resultObject.orderStatusWaitHarvest || 0
+        this.waitPay = ret.data.resultObject.orderStatusWaitPay || 0
+      } else {
+        wx.showToast({
+          title: '查询失败',
+          icon: 'none'
+        })
+      }
+    },
+    resetNum () {
+      this.couponTotalNum = 0
+      this.integral = 0
+      this.waitComment = 0
+      this.waitDeliver = 0
+      this.waitPay = 0
+      this.waitHarvest = 0
     },
     async login (data) {
-      let ret = await apiLogin()
+      let ret = await apiLogin({
+        headImg: data.avatarUrl,
+        nickName: data.nickName,
+        openId: this.openId
+      })
       if (ret.data.resultCode === '000001') {
         if (ret.header['Set-Cookie']) {
           wx.removeStorageSync('sessionid')
           wx.setStorageSync('sessionid', ret.header['Set-Cookie'])
         }
+        let ans = Object.assign(data, ret.data.resultObject)
         wx.removeStorageSync('userInfo')
-        wx.setStorageSync('userInfo', data)
+        wx.setStorageSync('userInfo', ans)
         this.$store.commit('updateIsLogin', true)
-        this.$store.commit('updateUser', data)
-        this.checkSignIn()
+        this.$store.commit('updateUser', ans)
+        this.isAuthorize = true
+        this.getNum()
+      } else {
+        wx.showToast({
+          title: '创建用户失败',
+          icon: 'none'
+        })
       }
     },
     async checkSignIn (data) {
@@ -127,26 +235,39 @@ export default {
         }
       }
     },
+    async getOpenId (code, userInfo) {
+      let ret = await apigetOpenId({
+        code: code
+      })
+      if (ret.data.resultCode === '000001') {
+        this.openId = ret.data.resultObject
+        this.login(userInfo)
+      }
+    },
     exitLogin () {
       this.$store.commit('updateIsLogin', false)
       this.$store.commit('cleanUserInfo')
+      this.resetNum()
     },
     clickSignIn () {
-      if (this.signIn) {
+      if (this.canSignIn) {
         this.signIn()
-      } else {
-        wx.showToast({
-          title: '无法签到',
-          icon: 'none'
-        })
       }
     },
     async signIn () {
+      if (this.isSigned) {
+        wx.showToast({
+          title: '无需重复签到',
+          icon: 'none'
+        })
+      }
+      if (this.loading) return false
       this.loading = true
       let ret = await apiSignIn()
       if (ret.statusCode === 200) {
         this.loading = false
-        this.signInNum = +ret.data.resultObject
+        this.integral = +ret.data.resultObject
+        this.isSigned = true
         wx.showToast({
           title: '签到成功',
           icon: 'success'
@@ -175,8 +296,19 @@ export default {
       })
     }
   },
+  mounted () {
+    if (wx.getStorageSync('userInfo').nickName) {
+      this.isAuthorize = true
+    } else {
+      this.isAuthorize = false
+    }
+  },
   onShow () {
-    console.log(this.userInfo)
+    if (this.isLogin) {
+      this.getNum()
+    } else {
+      this.resetNum()
+    }
     wx.setNavigationBarTitle({title: '我的'})
   }
 }
@@ -198,7 +330,8 @@ export default {
   .bgImg{
     width: 100%;
     position: absolute;
-    top: -90px;
+    top: 0px;
+    height: 160px;
   }
   .my-setting{
     border-radius: 6px;
@@ -238,8 +371,21 @@ export default {
   .discount-box{
     background: white;
     padding-bottom: 15px;
-    margin-top: 39px;
+    margin-top: 70px;
     padding-top: 5px;
+    .couponTotalNum{
+      position: relative;
+      .tip {
+        display:block;
+        background:#f00;
+        border-radius:50%;
+        width:8px;
+        height:8px;
+        top: 2px;
+        right: -6px;
+        position:absolute;
+      }
+    }
     .list{
       display: flex;
       flex-wrap: wrap;
@@ -264,6 +410,11 @@ export default {
     .list {
       display: flex;
       flex-wrap: wrap;
+      ._van-tag{
+        position: absolute;
+        top: -32px;
+        z-index: 999;
+      }
       .li-box {
         width: 25%;
         text-align: center;

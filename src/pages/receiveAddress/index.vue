@@ -2,85 +2,63 @@
   <div class="receive-address">
     <scroll-view scroll-y scroll-top="0" class="address-scroll">
         <div class="ub-box ub-col address-box">
-            <div class="address-list" @click="selectedAddress(index)" v-for="(item, index) in address" :key="item.id">
+            <div class="address-list" v-for="item in addressList" :key="item.id">
                 <div>
-                  <div class="address">{{item.address}}<span class="address-defalut" v-if="item.isDefalut">默认</span></div>
-                  <div class="address-tel"><span class="address-name">{{item.name}}</span><span>{{item.tel}}</span></div>
+                  <div class="address">{{item.code1}}{{item.code2}}{{item.code3}}{{item.addressDetails}}<span class="address-defalut" v-if="item.isDefault == true">默认</span></div>
+                  <div class="address-tel"><span class="address-name">{{item.name}}</span><span>{{item.telephone}}</span></div>
                 </div>
                 <div>
-                  <i class="edit-icon" @click.stop="$openWin('/pages/address/main')"></i>
+                  <i class="edit-icon" @click.stop="editAddress(item)"></i>
                 </div>
             </div>
         </div>
     </scroll-view>
-    <div class="add-address" @click.stop="$openWin('/pages/address/main')">
+    <div class="no-address" v-if="addressList.length == 0">暂时没有任何地址~</div>
+    <div class="add-address" @click.stop="$openWin('/pages/address/main?list=1')">
       新增收货地址
     </div>
   </div>
 </template>
 <script>
-  export default {
-    data () {
-      return {
-        address: [{
-          address: '南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 356,
-          isDefalut: true
-        }, {
-          address: '南京市鼓楼区清江花园三单元南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 546,
-          isDefalut: false
-        }, {
-          address: '南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 779,
-          isDefalut: false
-        }, {
-          address: '南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 342,
-          isDefalut: false
-        }]
-      }
-    },
-    methods: {
-      selectAddress () {
-        this.isShow = true
-      },
-      onSelect (item) {
-        console.log('xxx')
-        // 默认情况下点击选项时不会自动收起
-        // 可以通过 close-on-click-action 属性开启自动收起
-      },
-      selectedAddress (index) {
-        this.selectedAddressInfo = this.address[index]
-        this.isShow = false
-      },
-      showTimeSelected () {
-        this.isShowTime = true
-      },
-      clickItem () {
-        console.log('xxx')
-      },
-      handTime (index) {
-        this.selectedIndex = index
-        this.isShowTime = false
-        this.time = this.timeData[index].text
-      },
-      gotoaddAddress () {
-        wx.navigateTo({url: '/pages/address/main'})
-      }
-    },
-    onShow () {
-      wx.setNavigationBarTitle({title: '收货地址'})
+import { apigetAddress } from '@/request/api.js'
+export default {
+  data () {
+    return {
+      addressList: []
     }
+  },
+  methods: {
+    async getAddress () {
+      let ret = await apigetAddress()
+      this.addressList = []
+      if (ret.data.resultCode === '000001') {
+        for (let i = 0; i < ret.data.resultObject.length; i++) {
+          const element = ret.data.resultObject[i]
+          if (element.isDefault === '1') {
+            element.isDefault = true
+          } else {
+            element.isDefault = false
+          }
+          this.addressList.push(element)
+        }
+      } else {
+        wx.showToast({
+          title: '查询失败',
+          icon: 'none'
+        })
+      }
+    },
+    editAddress (data) {
+      this.$openWin('/pages/address/main?addressDetails=' + data.addressDetails +
+          '&code1=' + data.code1 + '&code2=' + data.code2 + '&code3=' + data.code3 +
+          '&name=' + data.name + '&telephone=' + data.telephone + '&isDefault=' + data.isDefault + '&id=' + data.id)
+    }
+  },
+  onShow () {
+    this.getAddress()
+    wx.setNavigationBarTitle({title: '收货地址'})
   }
+}
 </script>
 <style lang="less" scoped>
 .receive-address{
@@ -88,6 +66,9 @@
   background:rgba(247,247,247,1);
   padding: 10px;
   box-sizing: border-box;
+  .address-box{
+    margin-bottom: 50px;
+  }
   .address-scroll{
     height: 100%;
     .address-list{
@@ -138,6 +119,13 @@
     bottom: 45px;
     text-align: center;
     line-height: 44px;
+  }
+  .no-address{
+    color: #888;
+    text-align: center;
+    position: absolute;
+    top: 20px;
+    width: 100%;
   }
 }  
 </style>

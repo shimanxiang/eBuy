@@ -5,32 +5,32 @@
       <div class="ub-box ub-ver z-bg-color-fff">
         <swiper class="swiper" indicator-dots="true" autoplay="true" interval="5000" duration="500">
           <block v-for="item in carouselList" :key="item.id">
-            <swiper-item>
+            <swiper-item @click="clickSiper(item)">
               <image :src="item.image" class="z-width-100-percent" mode="widthFix"/>
             </swiper-item>
           </block>
         </swiper>
       </div>
-      <div class="recommend-box" v-for="item in productInfo" :key="item.categoryId">
+      <div class="recommend-box" v-for="item in productCross" :key="item.categoryId">
         <div class="food-title">{{item.categoryName}}</div>
         <scroll-view scroll-x="true">
           <div class="food-box" v-for="(list, subIndex) in item.productList" :key="list.id" @click.stop="goDetail(list.id)">
             <div class="food-img"><image :src="list.mainImg" class="z-width-100-percent" mode="widthFix" /></div>
             <div class="food-name">{{list.prodName}}</div>
             <div class="food-desc">{{list.prodDesc}}</div>
-            <div><span class="food-price">¥{{list.presentPrice}}&nbsp;</span><span class="food-weight">/{{list.unitDesc}}</span>
+            <div><span class="food-price">¥{{list.presentPrice}}&nbsp;</span><span class="food-weight">/{{list.specList[0].specDesc}}</span>
               <div class="editIcon" @click.stop="addCart(list)"><img src="/static/images/edit.png" alt="" srcset="" /></div>
             </div>
           </div>
         </scroll-view>
       </div>
-      <!--每日精品-->
-      <!-- <dl class="recommend-box ub-box ub-col newer-list">
-        <div class="food-title">新人专享</div>
+      <!--竖向-->
+      <dl class="recommend-box ub-box ub-col newer-list" v-for="item in productInfo" :key="item.categoryId">
+        <div class="food-title">{{item.categoryName}}</div>
         <dd class="ub-box ub-col">
-          <good v-for="(val, idx) in 7" :key="idx" :isLast="idx===6"></good>
+          <good v-for="(list, subIndex) in item.productList" :key="list.id" :isLast="subIndex===item.productList.length - 1" :curGood="list"></good>
         </dd>
-      </dl> -->
+      </dl>
     </scroll-view>
   </div>
 </template>
@@ -41,13 +41,9 @@
     components: {good},
     data () {
       return {
-        imgUrls: [
-          'http://p1.meituan.net/codeman/826a5ed09dab49af658c34624d75491861404.jpg',
-          'http://p0.meituan.net/codeman/a97baf515235f4c5a2b1323a741e577185048.jpg',
-          'http://p0.meituan.net/codeman/daa73310c9e57454dc97f0146640fd9f69772.jpg'
-        ],
         carouselList: [],
-        productInfo: []
+        productInfo: [],
+        productCross: []
       }
     },
     computed: {
@@ -55,22 +51,34 @@
         return this.$store.state.userInfo
       }
     },
-    // watch: {
-    //   userInfo () {
-    //     if (this.userInfo.nickName) {
-    //       this.getProduct()
-    //     }
-    //   }
-    // },
+    watch: {
+      userInfo () {
+        if (this.userInfo.openId) {
+          this.getProduct()
+        }
+      }
+    },
     methods: {
       goDetail (id) {
         wx.navigateTo({url: '/pages/goodDetail/main?id=' + id})
       },
+      clickSiper (data) {
+        wx.navigateTo({url: data.url})
+      },
       async getProduct () {
         let ret = await apiProduct()
         this.productInfo = []
+        this.productCross = []
         if (ret.data.resultCode === '000001') {
-          this.productInfo = ret.data.resultObject.slice()
+          for (let i = 0; i < ret.data.resultObject.length; i++) {
+            const element = ret.data.resultObject[i]
+            if (element.showType === '1') {
+              // 横向
+              this.productCross.push(element)
+            } else {
+              this.productInfo.push(element)
+            }
+          }
         }
       },
       async getCarousel () {
@@ -87,7 +95,7 @@
         let ret = await apiAddShoppingCar({
           num: 1,
           productId: data.id,
-          spec: 1
+          specId: data.specList[0].id // 默认选择第一个
         })
         if (ret.data.resultCode === '000001') {
           wx.showToast({
@@ -98,12 +106,7 @@
       }
     },
     mounted () {
-      this.getProduct()
       this.getCarousel()
-    },
-    onPullDownRefresh () {
-      console.log('onPullDownRefresh')
-      setTimeout(() => { wx.stopPullDownRefresh() }, 600)
     },
     onShow () {
       wx.setNavigationBarTitle({title: '生鲜'})
@@ -153,7 +156,7 @@
       margin-top: 3px;
       margin-bottom: 5px;
       white-space: nospace;
-      text-overflow: ellipsi;
+      text-overflow: ellipsis;
       overflow: hidden;
       width: 95px;
     }

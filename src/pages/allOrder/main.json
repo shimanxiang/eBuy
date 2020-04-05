@@ -1,7 +1,8 @@
 { 
-    "usingComponents": {
-      "van-tab": "/static/vant/tab/index",
-      "van-tabs": "/static/vant/tabs/index"
-    }
+  "usingComponents": {
+    "van-tab": "/static/vant/tab/index",
+    "van-tabs": "/static/vant/tabs/index",
+    "van-loading": "/static/vant/loading/index"
   }
+}
   

@@ -1,6 +1,7 @@
 { 
     "usingComponents": {
-      "van-checkbox": "/static/vant/checkbox/index"
+      "van-checkbox": "/static/vant/checkbox/index",
+      "van-stepper": "/static/vant/stepper/index"
     }
   }
   

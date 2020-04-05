@@ -10,18 +10,30 @@
       </van-tabs>
     </div>
     <div class="ub-box">
-      <scroll-view scroll-y scroll-top="0" class="z-margin-all-10-px">
+      <scroll-view scroll-y :scroll-top="scrollTop" class="z-margin-all-10-px scroll-list" @scrolltolower="scroll">
       <dl class="z-width-100-percent ub-box ub-col">
-       <dd v-for="list in filterList" :key="list.orderId" class="order z-width-100-percent ub-box z-box-sizing-border">
-         <img class="z-img-cover" :src="list.img" />
+       <dd v-for="list in orderList" :key="list.orderInfoId" @click.stop="goDetail(list.orderInfoId)" class="order z-width-100-percent ub-box z-box-sizing-border">
+         <img class="z-img-cover" :src="list.image" />
          <div class="ub-flex-1 z-padding-left-10-px ub-box ub-col">
-           <span class="z-font-size-13 z-color-333 z-margin-bottom-5-px z-margin-top-8-px z-font-weight-bold">{{list.name}}</span>
-           <span class="z-font-size-11 z-color-888 z-margin-bottom-10-px">{{list.price}}*{{list.num}}</span>
+           <span class="z-font-size-13 z-color-333 z-margin-bottom-5-px z-margin-top-8-px z-font-weight-bold">{{list.name}}&nbsp;&nbsp;&nbsp;<span v-show="list.num > 1">等{{list.num}}件</span></span>
+           <span class="z-font-size-11 z-color-888 z-margin-bottom-10-px">{{list.createTime}}</span>
            <span class="z-font-size-11 z-margin-bottom-10-px order-status z-font-weight-bold">{{orderStatusTxt[list.status]}}</span>
          </div>
-         <div class="z-font-size-11 order-operate" v-if="orderStatusOpreate[list.status]">{{orderStatusOpreate[list.status]}}</div>
+         <div class="order-price-box">
+           <div class="order-price">¥{{list.payfee}}</div>
+           <div class="z-font-size-11 z-margin-top-3-px" v-show="list.couponFee > 0"><span>已优惠&nbsp;<span class="red">¥{{list.couponFee}}</span></span></div>
+           </div>
+         <div>
+           <div class="z-font-size-11 order-operate" v-if="orderStatusOpreate[list.status]" @click.stop="clickOrderOperate(list.status, list.orderInfoId)">{{orderStatusOpreate[list.status]}}</div>
+         </div>
        </dd>
-       <dd v-show="filterList.length == 0" class="no-order">
+       <dd class="loading" v-show="showLoading && !fininshed">
+         <van-loading size="24px" type="spinner">加载中...</van-loading>
+       </dd>
+       <dd class="divider" v-show="fininshed && orderList.length > 6">
+         没有更多了
+       </dd>
+       <dd v-show="orderList.length == 0" class="no-order">
          您还没有相关的订单
        </dd>
      </dl>
@@ -30,6 +42,7 @@
   </div>
 </template>
 <script>
+  import { apiListSimpleOrderInfo, apiDoUnifiedOrder, apiConfirmReceipt } from '@/request/api.js'
   export default {
     data () {
       return {
@@ -47,69 +60,172 @@
           3: '确认收货',
           4: '立即评价'
         },
-        orderList: [{
-          status: 2,
-          orderId: '100',
-          img: 'http://p0.meituan.net/200.0/deal/522fd16a9b25479496188b59476d1b941062402.jpg@206_0_828_828a%7C267h_267w_2e_90Q',
-          name: '有机西蓝花',
-          num: '1',
-          price: '500g'
-        }, {
-          status: 1,
-          orderId: '101',
-          img: 'http://p0.meituan.net/200.0/deal/522fd16a9b25479496188b59476d1b941062402.jpg@206_0_828_828a%7C267h_267w_2e_90Q',
-          name: '有机西蓝花',
-          num: '1',
-          price: '500g'
-        }, {
-          status: 0,
-          orderId: '102',
-          img: 'http://p0.meituan.net/200.0/deal/522fd16a9b25479496188b59476d1b941062402.jpg@206_0_828_828a%7C267h_267w_2e_90Q',
-          name: '有机西蓝花',
-          num: '1',
-          price: '500g'
-        }, {
-          status: 3,
-          orderId: '103',
-          img: 'http://p0.meituan.net/200.0/deal/522fd16a9b25479496188b59476d1b941062402.jpg@206_0_828_828a%7C267h_267w_2e_90Q',
-          name: '有机西蓝花',
-          num: '1',
-          price: '500g'
-        }],
-        filterList: []
+        orderList: [],
+        loading: false,
+        pageIndex: 1,
+        pageSize: 10,
+        scrollTop: 0,
+        showLoading: false,
+        fininshed: false
       }
     },
-    watch: {
-      activeStatus () {
-        let res = this.orderList.filter((item) => {
-          return item.status === this.activeStatus
-        })
-        this.filterList = []
-        if (this.activeStatus === 0) {
-          this.filterList = this.orderList
-          return
-        }
-        this.filterList = res
+    computed: {
+      userInfo () {
+        return this.$store.state.userInfo || wx.getStorageSync('userInfo')
       }
     },
     methods: {
       tabsChange (e) {
         this.activeStatus = e.target.index
+        this.pageIndex = 1
+        this.fininshed = false
+        this.loading = false
+        this.scrollTop = 0
+        if (this.activeStatus === 0) {
+          this.getListSimpleOrderInfo(-1)
+        } else {
+          this.getListSimpleOrderInfo(this.activeStatus)
+        }
       },
-      tabsClick () {
-        console.log('click')
+      clickOrderOperate (status, orderInfoId) {
+        if (+status === 1) {
+          // 待付款
+          this.doUnifiedOrder(orderInfoId)
+        } else if (+status === 3) {
+          let _this = this
+          wx.showModal({
+            title: '提示',
+            content: '确定收货？',
+            success (res) {
+              if (res.confirm) {
+                _this.confirmReceipt(orderInfoId)
+              } else if (res.cancel) {
+                console.log('用户点击取消')
+              }
+            }
+          })
+        }
+      },
+      async confirmReceipt (id) {
+        let ret = await apiConfirmReceipt({
+          orderId: id
+        })
+        if (ret.data.resultCode === '000001') {
+          for (let i = 0; i < this.orderList.length; i++) {
+            if (this.orderList[i].orderInfoId === id) {
+              this.orderList.splice(i, 1)
+              break
+            }
+          }
+        } else {
+          wx.showToast({
+            title: '确认失败',
+            icon: 'none'
+          })
+        }
+      },
+      goDetail (id) {
+        wx.navigateTo({
+          url: '/pages/orderDetail/main?id=' + id
+        })
+      },
+      scroll () {
+        if (this.loading) return false
+        if (this.fininshed) return false
+        this.pageIndex += 1
+        this.showLoading = true
+        if (this.activeStatus === 0) {
+          this.getListSimpleOrderInfo(-1)
+        } else {
+          this.getListSimpleOrderInfo(this.activeStatus)
+        }
+      },
+      async doUnifiedOrder (orderId) {
+        if (this.loading) return false
+        this.loading = true
+        let ret = await apiDoUnifiedOrder({
+          openId: this.userInfo.openId,
+          orderId: orderId
+        })
+        if (ret.data.resultCode === '000001') {
+          this.loading = false
+          let data = ret.data.resultObject
+          wx.requestPayment({
+            timeStamp: data.timeStamp,
+            nonceStr: data.nonceStr,
+            package: data.package,
+            signType: data.signType,
+            paySign: data.paySign,
+            success (res) {
+              wx.showToast({
+                title: '支付成功'
+              })
+              wx.redirectTo({
+                url: '/pages/orderDetail/main?id=' + orderId
+              })
+            },
+            fail (res) {
+              wx.showToast({
+                title: res,
+                icon: 'none'
+              })
+            }
+          })
+        } else {
+          this.loading = false
+          wx.showToast({
+            title: '提交失败',
+            icon: 'none'
+          })
+        }
+      },
+      async getListSimpleOrderInfo (status) {
+        if (this.loading) return false
+        this.loading = true
+        let ret = await apiListSimpleOrderInfo({
+          pageIndex: this.pageIndex,
+          pageSize: this.pageSize,
+          status: status
+        })
+        if (ret.data.resultCode === '000001') {
+          if (this.pageIndex > 1) {
+            this.orderList = this.orderList.concat(ret.data.resultObject)
+          } else {
+            this.orderList = ret.data.resultObject.slice()
+          }
+          if (ret.data.resultObject.length < this.pageSize) {
+            this.fininshed = true
+          }
+          this.loading = false
+          this.showLoading = false
+        } else {
+          wx.showToast({
+            title: '订单查询失败',
+            icon: 'none'
+          })
+          this.loading = false
+          this.showLoading = false
+        }
       }
     },
-    mounted () {
-      if (this.activeStatus === 0) this.filterList = this.orderList
-    },
     onShow () {
+      this.fininshed = false
+      this.loading = false
+      this.pageIndex = 1
+      this.showLoading = false
+      this.orderList = []
+      if (this.activeStatus === 0) {
+        this.getListSimpleOrderInfo(-1)
+      } else {
+        this.getListSimpleOrderInfo(this.activeStatus)
+      }
       wx.setNavigationBarTitle({title: '订单'})
     },
     onLoad (options) {
       if (options.status) {
         this.defaluts = options.status.toString()
         this.activeStatus = +options.status
+        this.getListSimpleOrderInfo(this.activeStatus)
       }
     }
   }
@@ -119,10 +235,56 @@
     width:100%;
     background:rgba(248,248,248,1);
     height: 100%;
+    overflow: hidden;
+    .scroll-list{
+      height: 100vh;
+      dl{
+        margin-bottom: 50px;
+      }
+      .divider{
+        position:relative;
+        text-align:center;
+        width:100%;
+        margin:10px 0 20px 0;
+        font-size: 13px;
+        color:#b5b5b5;
+        &::before,&::after{
+          content:"";
+          position:absolute;
+          top:50%;
+          border:solid 1rpx #DCDCDC;
+          width:40%;
+        }
+        &::before{
+          left:0;
+        }
+        &::after{
+          right:0;
+        }
+      }
+      .loading{
+        text-align: center;
+      }
+    }
     .van-tab--active{
         font-size: 13px;
     }
-    .order{margin-bottom: 10px; padding-left: 15px; padding-right:15px; padding-top: 7px;padding-bottom: 6px; border-radius: 6px;background:#fff}
+    .order-price-box{
+      font-size: calc(10px);
+      position: absolute;
+      right: 25px;
+      top: 10px;
+      color: #222222;
+      .red{
+        color: #E43A4B;
+      }
+      .order-price{
+        font-size: 14px;
+        font-weight: bold;
+        text-align: right;
+      }
+    }
+    .order{position: relative; margin-bottom: 10px; padding-left: 15px; padding-right:15px; padding-top: 7px;padding-bottom: 6px; border-radius: 6px;background:#fff}
     .order img{width: 55px; height: 55px; margin-top: 11px;}
     .order-operate{
       width:64px;

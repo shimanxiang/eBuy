@@ -1,36 +1,39 @@
 <template>
   <div class="card-container ub-box ub-col">
     <scroll-view scroll-x="true" class="card-srcoll">
-      <div :class="item.status == 0 ? 'card-box green' : item.status == 1 ? 'card-box red' : 'card-box grey'" v-for="(item, index) in couponList" :key="item.id">
+      <div :class="item.status == 1 ? 'card-box green' : item.status == 2 ? 'card-box red' : 'card-box grey'" v-for="(item, index) in couponList" :key="item.id">
         <div class="card-status"></div>
         <div class="card-top">
-          <div class="money">¥{{item.price}}</div>
+          <div class="money">¥{{item.denomination}}</div>
           <div class="desc">
             <div class="desc-head"><span class="desc-name">{{item.name}}</span>
-            <span class="desc-status" v-if="item.status == 0">待使用</span>
-            <span class="desc-status" v-else-if="item.status == 1">即将过期</span>
+            <span class="desc-status" v-if="item.status == 1">待使用</span>
+            <span class="desc-status" v-else-if="item.status == 2">即将过期</span>
+            <span class="desc-status" v-else-if="item.status == 5">不满足条件</span>
             <span class="desc-status" v-else>已失效</span>
             </div>
-            <div class="desc-rule">{{item.limit}}</div>
-            <div class="desc-time">{{item.time}}</div>
+            <div class="desc-rule">{{item.ruleDesc}}</div>
+            <div class="desc-time">{{item.effTime}} ~ {{item.expTime}}</div>
           </div> 
         </div>
-        <div class="radio-custom" v-if="item.status != 2 && showOpreate"><van-checkbox v-model="item.checked" @click="changeStatus(index)"></van-checkbox></div> 
-        <div class="card-bottom">
+        <div class="radio-custom" v-if="(item.status == 1 || item.status == 2) && showOpreate"><van-checkbox v-model="item.checked" @click="changeStatus(index)"></van-checkbox></div> 
+        <!-- <div class="card-bottom">
           <span>使用规则</span>
-          <van-icon name="arrow-down" class="bottom-icon" @click="showDetail(0)" v-if="!isShow"/>
+          <van-icon name="arrow-down" class="bottom-icon" @click="showDetail(0)" v-if="!item.isExpand"/>
           <van-icon name="arrow-up" class="bottom-icon" @click="hideDetail(0)" v-else/>
-          <div class="card-limit" v-show="isShow">
+          <div class="card-limit" v-show="item.isExpand">
             <div>仅限海鲜水产专区使用;</div>
             <div>不可与其他优惠券</div>
           </div>
-        </div>
+        </div> -->
       </div>
     </scroll-view>
-    <button class="btn-green" v-if="showOpreate" @click="noUseCoupon">不使用任何优惠券</button>
+    <button class="btn-green" v-if="showOpreate" @click="clickConfrim">确认</button>
   </div>
 </template>
 <script>
+import { apiQueryCoupon, apiUpdateNewCoupon } from '@/request/api.js'
+
 export default {
   computed: {
     isLogin () {
@@ -40,58 +43,21 @@ export default {
       return this.$store.state.userInfo
     }
   },
-  watch: {
-    isShow () {
-      console.log(this.isShow)
-    }
-  },
   data () {
     return {
-      isShow: false,
       checked: true,
       showOpreate: false,
-      couponList: [{
-        id: '1',
-        name: '优惠券名称',
-        price: '30',
-        limit: '购物满88元使用',
-        time: '2020年12月30日到期',
-        status: 0,
-        checked: false,
-        rules: [{
-          id: '11',
-          desc: '1214242'
-        }]
-      }, {
-        id: '2',
-        name: '优惠券名称',
-        price: '30',
-        limit: '购物满88元使用',
-        time: '2020年12月30日到期',
-        status: 1,
-        checked: false,
-        rules: [{
-          id: '11',
-          desc: '1214242'
-        }]
-      }, {
-        id: '3',
-        name: '优惠券名称',
-        price: '30',
-        limit: '购物满88元使用',
-        time: '2020年12月30日到期',
-        status: 2,
-        checked: false,
-        rules: []
-      }]
+      defaultCouponId: '',
+      defaultFee: 0,
+      couponList: []
     }
   },
   methods: {
     showDetail (index) {
-      this.isShow = true
+      this.couponList[index].isExpand = true
     },
     hideDetail (index) {
-      this.isShow = false
+      this.couponList[index].isExpand = false
     },
     changeStatus (index) {
       let initCheck = this.couponList[index].checked
@@ -99,10 +65,72 @@ export default {
         this.couponList[i].checked = false
       }
       this.couponList[index].checked = !initCheck
+      if (this.couponList[index].checked) {
+        wx.removeStorageSync('couponInfo')
+        wx.setStorageSync('couponInfo', {
+          denomination: this.couponList[index].denomination,
+          id: this.couponList[index].id,
+          couponName: this.couponList[index].name
+        })
+      }
     },
-    noUseCoupon () {
-      for (let i = 0; i < this.couponList.length; i++) {
-        this.couponList[i].checked = false
+    clickConfrim () {
+      wx.navigateBack()
+    },
+    findCouponId (id) {
+      let arr = wx.getStorageSync('proIds')
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] === id) {
+          return true
+        }
+      }
+      return false
+    },
+    async getCoupon () {
+      let ret = await apiQueryCoupon()
+      let canUsed = []
+      let noUsed = []
+      this.couponList = []
+      if (ret.data.resultCode === '000001') {
+        for (let i = 0; i < ret.data.resultObject.length; i++) {
+          const element = ret.data.resultObject[i]
+          element.isExpand = false
+          if (element.id === this.defaultCouponId) {
+            element.checked = true
+          } else {
+            element.checked = false
+          }
+          if (this.showOpreate) {
+            if (element.type === '1') {
+              // 价格限制
+              if (this.defaultFee < element.limitPrice) {
+                // 不满足条件
+                element.status = 5
+                noUsed.push(element)
+                continue
+              }
+            } else if (element.type === '2') {
+              // 产品限制
+              if (!this.findCouponId(element.limitProductId)) {
+                // 不符合规则
+                element.status = 5
+                noUsed.push(element)
+                continue
+              }
+            }
+          }
+          canUsed.push(element)
+        }
+        this.couponList = canUsed.concat(noUsed)
+      }
+    },
+    async updateNewCoupon () {
+      let ret = await apiUpdateNewCoupon()
+      if (ret.data.resultCode !== '000001') {
+        wx.showToast({
+          title: '查询失败',
+          icon: 'none'
+        })
       }
     }
   },
@@ -112,9 +140,13 @@ export default {
   onLoad (options) {
     if (options.canUse) {
       this.showOpreate = true
+      this.defaultCouponId = options.couponId
+      this.defaultFee = options.fee
     } else {
       this.showOpreate = false
     }
+    this.updateNewCoupon()
+    this.getCoupon()
   }
 }
 </script>
@@ -174,6 +206,7 @@ export default {
         font-weight:bold;
         position: relative;
         top: -16px;
+        width: 80px;
       }
       .desc{
         display: inline-block;

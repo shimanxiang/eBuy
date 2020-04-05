@@ -1,11 +1,57 @@
 <script>
+import { apiLogin, apigetOpenId } from '@/request/api.js'
 export default {
+  data () {
+    return {
+      openId: ''
+    }
+  },
+  methods: {
+    async getOpenId (code) {
+      let ret = await apigetOpenId({
+        code: code
+      })
+      if (ret.data.resultCode === '000001') {
+        this.openId = ret.data.resultObject
+        this.login()
+      }
+    },
+    async login () {
+      let ret = await apiLogin({
+        openId: this.openId
+      })
+      if (ret.data.resultCode === '000001') {
+        if (ret.header['Set-Cookie']) {
+          wx.removeStorageSync('sessionid')
+          wx.setStorageSync('sessionid', ret.header['Set-Cookie'])
+        }
+        wx.removeStorageSync('userInfo')
+        wx.setStorageSync('userInfo', ret.data.resultObject)
+        this.$store.commit('updateIsLogin', true)
+        this.$store.commit('updateUser', ret.data.resultObject)
+      } else {
+        wx.showToast({
+          title: '创建用户失败',
+          icon: 'none'
+        })
+      }
+    }
+  },
   created () {
-    // 调用API从本地缓存中获取数据
-    const logs = wx.getStorageSync('logs') || []
-    logs.unshift(Date.now())
-    wx.setStorageSync('logs', logs)
-    console.log('app created and cache logs by setStorageSync')
+    let _this = this
+    wx.login({
+      success (res) {
+        if (res.code) {
+          // 发起网络请求
+          _this.getOpenId(res.code)
+        } else {
+          wx.showToast({
+            title: '登录失败！',
+            icon: 'none'
+          })
+        }
+      }
+    })
   }
 }
 </script>
@@ -53,5 +99,8 @@ export default {
 }
 ._van-overlay .van-tree-select__nav{
  background-color: white;
+}
+.van-tag{
+  padding: .2em .6em !important;
 }
 </style>

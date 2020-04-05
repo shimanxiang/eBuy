@@ -13,7 +13,9 @@
     "pages/card/main",
     "pages/receiveAddress/main",
     "pages/searchFood/main",
-    "pages/allOrder/main"
+    "pages/allOrder/main",
+    "pages/orderDetail/main",
+    "pages/notice/main"
   ],
   "window": {
     "backgroundTextStyle": "light",

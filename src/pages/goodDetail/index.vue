@@ -34,10 +34,10 @@
 		</dd>
 		<dd class="z-margin-top-15-px z-margin-bottom-15-px">
 			<div>
-				<span class="food-price">¥{{productDetail.presentPrice}}</span>
-				<span class="food-weight">/{{productDetail.unitDesc}}</span>
-				<span v-if="productDetail.presentPrice != productDetail.originalPrice">
-					<span class="food-price-origin">¥{{productDetail.originalPrice}}</span>
+				<span class="food-price">¥{{presentPrice}}</span>
+				<span class="food-weight">/{{activeSpec}}</span>
+				<span v-if="originalPrice != presentPrice">
+					<span class="food-price-origin">¥{{originalPrice}}</span>
 				</span>
 			</div>
 		</dd>
@@ -45,7 +45,7 @@
 			<span>规格选择</span>
 		</dd>
 		<dd>
-			<button :class="activeIndex == index ? 'btnSelect active' : 'btnSelect' " v-for="(item, index) in specInventorys" :key="item.id" @click="setIndex(index, item)">{{item.specDesc}}</button>
+			<button :class="activeIndex == index ? 'btnSelect active' : 'btnSelect' " v-for="(item, index) in productDetail.specList" :key="item.id" @click="setIndex(index, item)">{{item.specDesc}}</button>
 		</dd>
 		<dd class="z-margin-top-10-px z-margin-bottom-10-px">
 			<span class="title-small">数量选择</span>
@@ -85,11 +85,12 @@
 			</p> -->
 		</dd>
 		<dd class="z-box-sizing-border z-bg-color-fff ub-box ub-between" style="margin-bottom: 30px">
-			<ul class="ub-flex-1 ub-box ub-col">
+			<ul class="ub-flex-1 ub-box ub-col" v-if="comments.length > 0">
 				<li v-for="(val, idx) in comments" :key="idx">
 					<comment :comment="val" :isShowLike="false"></comment>
 				</li>
 			</ul>
+			<div class="z-color-888 z-font-size-12 noComment" v-else>暂无任何评价</div>
 		</dd>
 	  </dl>
 	</scroll-view>
@@ -101,117 +102,119 @@
 			</div>
 			<span class="shop-price"><span class="z-font-size-12 red">¥</span><span class="z-font-size-18 red">{{totalMoney}}</span></span>
 		</div>
-		<div class="right-bottom">加入购物车</div>
+		<div class="right-bottom" @click="addShoppingCar">加入购物车</div>
 	</div>
   </div>
 </template>
 <script>
-	import comment from '../../components/comment.vue'
-	import { apiProductDetails } from '@/request/api.js'
-	export default {
-	  components: {comment},
-	  data () {
-	    return {
-	      curIndex: 1,
-		  num: 1,
-		  productDetail: {}, // 商品信息
-		  specInventorys: [], // 规格
-		  proId: '',
-		  activeIndex: 0,
-		  activeSpec: 0, // 单位
-	      imgUrls: [
-	        'http://p1.meituan.net/codeman/826a5ed09dab49af658c34624d75491861404.jpg',
-	        'http://p0.meituan.net/codeman/a97baf515235f4c5a2b1323a741e577185048.jpg',
-	        'http://p0.meituan.net/codeman/daa73310c9e57454dc97f0146640fd9f69772.jpg'
-	      ],
-	      comments: [
-	        {
-	          header: 'https://img.meituan.net/avatar/855458f5c24ab19951f382ee99533ad981495.jpg@37w_37h_1e_1c',
-	          name: 'AqU753874254',
-	          time: '2018-05-07',
-	          star: '4.0',
-	          say: '菜品很多，强烈推荐龙虾，超级棒！每次来都吃撑！很满意的一家自主餐！生日当天海送了蛋糕、服务员“代玉琳”美女，服务态度超级好，热情，人也长的美美哒，给她一个赞！ ',
-	          imgs: [
-	            'http://p0.meituan.net/shaitu/40b07a385f90bca838efa48a911bf491253024.jpg',
-	            'http://p0.meituan.net/shaitu/f6af829ff902040fb3225643b2775c1f111115.jpg',
-	            'http://p0.meituan.net/shaitu/e96132da9f76af022d6e521b2265ad70204304.jpg',
-	            'http://p0.meituan.net/shaitu/307d287b8d55f1d67dab188502a684ec158341.jpg'
-	          ]
-	        },
-	        {
-	          header: 'https://p0.meituan.net/122.74/mmc/35ad1f9253761ea6ff822b5e659f234f3758.png',
-	          name: 'PPL546030823',
-	          time: '2018-05-06',
-	          star: '4.5',
-	          say: '环境很好，有昆明的夕阳相伴，谢谢美女服务员代玉琳的热忱服务，度过和朋友悠闲的晚餐时光🎈 #煎鹅肝# ',
-	          imgs: [
-	            'http://p0.meituan.net/400.0/shaitu/bc52b03f7f091d6711b8a1ec024a0e6a83730.jpg',
-	            'http://p0.meituan.net/400.0/shaitu/053247a6b8ede53824435f23196971d2124167.jpg',
-	            'http://p0.meituan.net/400.0/shaitu/0783b3f70ab47607593dcba906c7d570147806.jpg'
-
-	          ]
-	        }
-	      ]
-	    }
-	  },
-	  computed: {
-		  totalMoney () {
-			  return (+this.productDetail.presentPrice * this.activeSpec * this.num).toFixed(2)
-		  }
-	  },
-	  methods: {
-	    previewImage (imgs = [], curIdx = 0) {
-	      wx.previewImage({current: imgs[curIdx], urls: imgs})
-	    },
-	    slidechange (e) {
-	      console.log(e)
-	      this.curIndex = e.target.current + 1
-	    },
-	    /* 加数 */
-	    addCount () {
-	      this.num++
-	    },
-	    delCount () {
-	      if (this.num > 1) {
-	        this.num--
-	      }
-	    },
-	    setIndex (index, item) {
-		  this.activeIndex = index
-	      this.activeSpec = +item.spec
-	    },
-    	async getProductDetails () {
-		  let ret = await apiProductDetails({prodId: 1})
-		  this.productDetail = {}
-		  this.imgUrls = []
-		  this.specInventorys = []
-		  this.comments = []
-		  if (ret.data.resultCode === '000001') {
-			  this.productDetail = ret.data.resultObject.productVO
-			  // this.categories = ret.data.resultObject.slice()
-			  this.imgUrls = [this.productDetail.mainImg, this.productDetail.secondImg]
-			  this.specInventorys = ret.data.resultObject.specInventorys
-			  this.activeSpec = this.specInventorys[0].spec
-			  this.comments = ret.data.resultObject.comments
-		  }
-		  console.log(ret)
-		  // console.log(this.categories)
-	    }
-	  },
-	  mounted () {
-	    this.getProductDetails()
-	  },
-	  onLoad (options) {
-	    if (options.id) {
-		  this.proId = options.id
-    	}
-	    console.log(options)
-	  }
-	}
+import comment from '../../components/comment.vue'
+import { apiProductDetails, apiAddShoppingCar } from '@/request/api.js'
+export default {
+  components: {comment},
+  data () {
+    return {
+      curIndex: 1,
+      num: 1,
+      loading: false,
+      productDetail: {}, // 商品信息
+      specInventorys: [], // 规格
+	  proId: '',
+	  presentPrice: '', // 现价
+	  originalPrice: '', // 原价
+      activeIndex: 0,
+	  activeSpec: 0, // 单位
+	  activeSpecId: '',
+      imgUrls: [],
+      comments: []
+    }
+  },
+  computed: {
+    totalMoney () {
+	  return (+this.presentPrice * this.num).toFixed(2)
+    }
+  },
+  methods: {
+    previewImage (imgs = [], curIdx = 0) {
+      wx.previewImage({current: imgs[curIdx], urls: imgs})
+    },
+    slidechange (e) {
+      this.curIndex = e.target.current + 1
+    },
+    /* 加数 */
+    addCount () {
+      this.num++
+    },
+    delCount () {
+      if (this.num > 1) {
+        this.num--
+      }
+    },
+    setIndex (index, item) {
+      this.activeIndex = index
+	  this.activeSpec = item.specDesc
+	  this.activeSpecId = item.id
+	  this.originalPrice = item.originalPrice
+	  this.presentPrice = item.presentPrice
+    },
+    async getProductDetails () {
+      let ret = await apiProductDetails({prodId: this.proId})
+      this.productDetail = {}
+      this.imgUrls = []
+      this.specInventorys = []
+	  this.comments = []
+	  this.activeIndex = 0
+	  this.activeSpec = 0 // 单位
+	  this.activeSpecId = ''
+	  this.num = 1
+      if (ret.data.resultCode === '000001') {
+        this.productDetail = ret.data.resultObject.productVO
+        // this.categories = ret.data.resultObject.slice()
+        this.imgUrls = [this.productDetail.mainImg, this.productDetail.secondImg]
+        this.specInventorys = this.productDetail.specList
+        this.activeSpec = this.specInventorys[0].specDesc
+        this.activeSpecId = this.specInventorys[0].id
+        this.presentPrice = this.specInventorys[0].presentPrice
+        this.originalPrice = this.specInventorys[0].originalPrice
+        this.comments = ret.data.resultObject.comments
+      }
+    },
+    async addShoppingCar () {
+      if (this.loading) return false
+      this.loading = true
+      let ret = await apiAddShoppingCar({
+        num: this.num,
+        productId: this.proId,
+        specId: this.activeSpecId
+      })
+      if (ret.data.resultCode === '000001') {
+        wx.showToast({
+          title: '添加成功~',
+          icon: 'success'
+        })
+        this.loading = false
+      } else {
+        this.loading = false
+      }
+    }
+  },
+  mounted () {
+  },
+  onLoad (options) {
+    if (options.id) {
+      this.proId = options.id
+    }
+    this.getProductDetails()
+  }
+}
 </script>
 <style scoped lang="less">
 .detail-container{
 	width:100%;
+	.noComment{
+		text-align: center;
+		margin: 20px 0;
+		width: 100%;
+	}
 }
   .swiper{height: 270px;width: calc(100%)}
   .indexImg{height: 270px;position: relative;}

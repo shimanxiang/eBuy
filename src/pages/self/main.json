@@ -1,0 +1,6 @@
+{ 
+    "usingComponents": {
+      "van-tag": "/static/vant/tag/index"
+    }
+  }
+  

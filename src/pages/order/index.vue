@@ -1,25 +1,28 @@
 <template>
   <div class="order-confirm">
-    <van-tabs v-model="activeName" title-inactive-color="#888888" :border="false" line-width="22">
-      <van-tab title="配送">
+    <van-tabs :value="activeName" :active="defaults" title-inactive-color="#888888" :border="false" line-width="22" @change="clickTabs">
+      <van-tab title="配送" name="1">
         <div class="content">
         <div class="select-box">
           <div class="select-address" @click="selectAddress" v-if="!selectedAddressInfo.id">选择收货地址 ></div>
           <div class="select-address" @click="selectAddress" v-else>
-            {{selectedAddressInfo.address}} >
-            <div class="address-tel"><span class="address-name">{{selectedAddressInfo.name}}</span><span>{{selectedAddressInfo.tel}}</span></div>
+            {{selectedAddressInfo.code1}}{{selectedAddressInfo.code2}}{{selectedAddressInfo.code3}}{{selectedAddressInfo.addressDetails}} >
+            <div class="address-tel"><span class="address-name">{{selectedAddressInfo.name}}</span><span>{{selectedAddressInfo.telephone}}</span></div>
           </div>
           <van-divider :style="{ padding: '0px' }"/>
-          <div @click="showTimeSelected"><span>配送时间</span><span class="send-time">{{time}} ></span></div>
+          <div @click="showTimeSelected"><span>配送时间</span><span class="send-time">{{time}}></span></div>
         </div>
       </div>
       </van-tab>
-      <van-tab title="自提">
+      <van-tab title="自提" name="2">
         <div class="content">
-          <div class="select-box">
-            <div class="select-address" @click="selectAddress">南京市鼓楼区农贸市场</div>
+          <div class="select-box" v-show="listSites[defalutSitesIndex]">
+            <div class="select-address" @click="selectAddress">
+               {{listSites[defalutSitesIndex].code1}}{{listSites[defalutSitesIndex].code2}}{{listSites[defalutSitesIndex].code3}}{{listSites[defalutSitesIndex].addressDetails}} >
+                <div class="address-tel"><span class="address-name">{{listSites[defalutSitesIndex].name}}</span><span>{{listSites[defalutSitesIndex].telephone}}</span></div>
+            </div>
             <van-divider :style="{ padding: '0px' }"/>
-            <div><span>自提时间</span><span class="send-time">10:00 - 11:00 ></span></div>
+            <div @click="showTimeSelected"><span>自提时间</span><span class="send-time">{{time}} ></span></div>
           </div>
         </div>
       </van-tab>
@@ -27,38 +30,42 @@
     <scroll-view scroll-y scroll-top="0">
       <div class="order-food">
         <dl class="z-width-100-percent ub-box ub-col">
-          <dd v-for="(val, idx) in 3" :key="idx" class="order z-width-100-percent ub-box z-box-sizing-border">
-            <img class="z-img-cover" :src="order.img" />
+          <dd v-for="item in shopList" :key="item.id" class="order z-width-100-percent ub-box z-box-sizing-border">
+            <img class="z-img-cover" :src="item.image" />
             <div class="ub-flex-1 z-padding-left-10-px ub-box ub-col">
-              <span class="z-font-size-13 z-color-333 z-margin-bottom-10-px z-margin-top-12-px z-font-weight-bold">{{order.name}}</span>
-              <span class="z-font-size-11 z-color-888 z-margin-bottom-3-px">总价：{{order.price}}</span>
+              <span class="z-font-size-13 z-color-333 z-margin-bottom-10-px z-margin-top-12-px z-font-weight-bold">{{item.prodName}}</span>
+              <span class="z-font-size-11 z-color-888 z-margin-bottom-3-px">规格：{{item.specDesc}}&nbsp;&nbsp;&nbsp;{{item.price}}x{{item.num}}</span>
             </div>
-            <span class="z-font-size-15 z-margin-top-12-px z-font-weight-bold">{{order.type}}</span>
+            <span class="z-font-size-15 z-margin-top-12-px z-font-weight-bold">¥{{item.total}}</span>
           </dd>
         </dl>
-        <div class="line-box z-margin-top-10-px"><span>包装费</span><span class="fr">¥1.5</span></div>
-        <div class="line-box"><span>配送费</span><span class="fr">¥1.5</span></div>
-        <div class="line-box"><span>优惠券</span><span v-if="hasCoupon" class="fr red">-9.9</span><span v-else class="fr flex-middle-center z-color-888" @click="chooseCoupon">2张可用 <van-icon name="arrow" /></span></div>
+        <div class="line-box z-margin-top-10-px"><span>包装费</span><span class="fr">¥{{orderInfo.packingCharges}}</span></div>
+        <div class="line-box"><span>配送费</span><span class="fr">¥{{orderInfo.distributionFee}}</span></div>
+        <div class="line-box"><span>优惠券</span><span v-if="hasCoupon">
+          <!-- <span @click="chooseCoupon" v-if="1" class="fr flex-middle-center z-color-888">2张可用 <van-icon name="arrow" /></span> -->
+          <span class="fr red" @click="chooseCoupon(orderInfo.couponId)">{{orderInfo.couponName}}&nbsp;&nbsp;&nbsp;&nbsp;-{{orderInfo.couponDenomination}}<span class="z-color-888" style="vertical-align: middle;margin-left: 5px;"><van-icon name="arrow" /></span></span>
+        </span>
+        <span v-else class="fr flex-middle-center z-color-888">暂无可用优惠券</span></div>
       </div>
     </scroll-view>
     <div class="bottom-card">
 		<div class="left-bottom">
 			<span class="total-name">合计</span>
-			<span class="shop-price"><span class="z-font-size-12 red">¥</span><span class="z-font-size-18 red">39.9</span></span>
+			<span class="shop-price"><span class="z-font-size-12 red">¥</span><span class="z-font-size-18 red">{{orderInfo.orderFee}}</span></span>
 		</div>
-		<div class="right-bottom">提交订单</div>
+		<div class="right-bottom" @click="clickSubmitOrder">提交订单</div>
 	</div>
   <van-overlay :show="isShow" @click="isShow = false">
     <div class="wrapper" @click.stop>
       <scroll-view scroll-y scroll-top="0" class="address-scroll">
         <div class="ub-box ub-col">
-          <div class="address-list" @click="selectedAddress(index)" v-for="(item, index) in address" :key="item.id">
-            <div class="address">{{item.address}}<span class="address-defalut" v-if="item.isDefalut">默认</span></div>
-            <div class="address-tel"><span class="address-name">{{item.name}}</span><span>{{item.tel}}</span></div>
+          <div class="address-list" @click="selectedAddress(index)" v-for="(item, index) in maskAddressList" :key="item.id">
+            <div class="address">{{item.code1}}{{item.code2}}{{item.code3}}{{item.addressDetails}}<span class="address-defalut" v-if="item.isDefault == '1'">默认</span></div>
+            <div class="address-tel"><span class="address-name">{{item.name}}</span><span>{{item.telephone}}</span></div>
           </div>
         </div>
       </scroll-view>
-      <div class="add-address" @click="gotoaddAddress">+ 新增收货地址</div>
+      <div class="add-address" @click="gotoaddAddress" v-show="activeName == 0">+ 新增收货地址</div>
     </div>
   </van-overlay>
   <van-overlay :show="isShowTime" @click="isShowTime = false">
@@ -69,9 +76,9 @@
         </ul>
         <div class="right">
           <scroll-view scroll-y scroll-top="0" class="address-scroll">
-            <ul class="list" @click="handTime(index)" v-for="(item, index) in timeData" :key="item.id">
-              <li :class="selectedIndex == item.index ? 'active' : ''">{{item.text}}
-                <van-checkbox v-model="checked" class="vant-checkbox-custom" v-if="selectedIndex == item.index"></van-checkbox>
+            <ul class="list" @click="handTime(index)" v-for="(item, index) in deliverTime" :key="index">
+              <li :class="selectedIndex == index ? 'active' : ''">{{item}}
+                <van-checkbox v-model="checked" class="vant-checkbox-custom" v-if="selectedIndex == index"></van-checkbox>
               </li>
             </ul>
           </scroll-view>
@@ -82,105 +89,210 @@
   </div>
 </template>
 <script>
+  import { apigetAddress, apiPostOrderInfo, apiDoUnifiedOrder, apiGetListSites } from '@/request/api.js'
   export default {
     data () {
       return {
         checked: true,
         time: '选择时间',
         hasCoupon: false,
-        selectedIndex: 0,
-        timeData: [{
-          text: '10:00 - 11:00', id: 2456, index: 0
-        }, { text: '11:00 - 12:00', id: 256, index: 1
-        }, { text: '11:00 - 12:00', id: 2561, index: 2
-        }, { text: '11:00 - 12:00', id: 2562, index: 3
-        }, { text: '11:00 - 12:00', id: 2563, index: 4
-        }, { text: '11:00 - 12:00', id: 2564, index: 5
-        }, { text: '11:00 - 12:00', id: 2565, index: 6
-        }, { text: '11:00 - 12:00', id: 2566, index: 7
-        }, { text: '11:00 - 12:00', id: 2567, index: 8
-        }, { text: '11:00 - 12:00', id: 2568, index: 9
-        }, { text: '11:00 - 12:00', id: 2569, index: 10
-        }, { text: '11:00 - 12:00', id: 2510, index: 11
-        }],
-        activeId: 256,
+        selectedIndex: -1,
+        deliverTime: [],
+        orderInfo: {},
+        defaults: '1',
         activeIndex: 0,
         isShow: false,
         isShowTime: false,
-        activeName: 1,
+        activeName: 0,
         selectedAddressInfo: {},
-        address: [{
-          address: '南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 356,
-          isDefalut: true
-        }, {
-          address: '南京市鼓楼区清江花园三单元南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 546,
-          isDefalut: false
-        }, {
-          address: '南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 779,
-          isDefalut: false
-        }, {
-          address: '南京市鼓楼区清江花园三单元',
-          name: '北洛',
-          tel: '18380405938',
-          id: 342,
-          isDefalut: false
-        }],
-        order: {
-          orderId: '100',
-          img: 'http://p0.meituan.net/200.0/deal/522fd16a9b25479496188b59476d1b941062402.jpg@206_0_828_828a%7C267h_267w_2e_90Q',
-          name: '索菲特大酒店锦厨',
-          num: '1',
-          price: '500g*1',
-          type: '¥11.9'
-        },
-        actions: [
-          { name: '选项' },
-          { name: '选项' },
-          { name: '选项', subname: '描述信息' }
-        ]
+        addressList: [],
+        shoppingCarIds: '',
+        shopList: [],
+        loading: false,
+        listSites: [],
+        maskAddressList: [],
+        defalutSitesIndex: 0
       }
     },
-    watch: {
-      $route (to, from) {
-        console.log(to, from)
+    computed: {
+      userInfo () {
+        return this.$store.state.userInfo || wx.getStorageSync('userInfo')
       }
     },
     methods: {
-      selectAddress () {
-        this.isShow = true
+      async getAddress () {
+        let ret = await apigetAddress()
+        this.addressList = []
+        if (ret.data.resultCode === '000001') {
+          this.addressList = ret.data.resultObject.slice()
+        } else {
+          wx.showToast({
+            title: '查询失败',
+            icon: 'none'
+          })
+        }
       },
-      onSelect (item) {
-        console.log('xxx')
+      async getListSites () {
+        let ret = await apiGetListSites()
+        this.listSites = []
+        if (ret.data.resultCode === '000001') {
+          this.listSites = ret.data.resultObject.slice()
+        } else {
+          wx.showToast({
+            title: '自提站点查询失败',
+            icon: 'none'
+          })
+        }
+      },
+      clickTabs (e) {
+        this.activeName = +e.target.index
+      },
+      selectAddress () {
+        if (this.addressList.length === 0 && this.activeName === 0) {
+          this.gotoaddAddress()
+        } else {
+          if (this.activeName === 0) {
+            this.maskAddressList = this.addressList.slice()
+          } else {
+            this.maskAddressList = this.listSites.slice()
+          }
+          this.isShow = true
+        }
       },
       selectedAddress (index) {
-        this.selectedAddressInfo = this.address[index]
+        if (this.activeName === 0) {
+          // 配送
+          this.selectedAddressInfo = this.addressList[index]
+        } else {
+          // 自提
+          this.defalutSitesIndex = index
+        }
         this.isShow = false
       },
       showTimeSelected () {
         this.isShowTime = true
       },
-      clickItem () {
-        console.log('xxx')
-      },
       handTime (index) {
         this.selectedIndex = index
         this.isShowTime = false
-        this.time = this.timeData[index].text
+        this.time = this.deliverTime[index]
       },
       gotoaddAddress () {
         wx.navigateTo({url: '/pages/address/main'})
       },
-      chooseCoupon () {
-        wx.navigateTo({url: '/pages/card/main?canUse=1'})
+      clickSubmitOrder () {
+        if (!this.userInfo.openId) {
+          wx.showToast({
+            title: '请先登录',
+            icon: 'none'
+          })
+          return false
+        }
+        if (this.selectedIndex < 0) {
+          wx.showToast({
+            title: '请先选择时间',
+            icon: 'none'
+          })
+          return false
+        }
+        if (!this.selectedAddressInfo.id && this.activeName === 0) {
+          wx.showToast({
+            title: '请先选择地址',
+            icon: 'none'
+          })
+          return false
+        }
+        if (this.shopList.length === 0) {
+          wx.showToast({
+            title: '请先选择商品',
+            icon: 'none'
+          })
+          return false
+        }
+        let prodSpec = []
+        for (let i = 0; i < this.shopList.length; i++) {
+          const element = this.shopList[i]
+          prodSpec.push({
+            num: element.num,
+            prodId: element.prodId,
+            specId: element.specId
+          })
+        }
+        if (this.loading) return false
+        this.loading = true
+        this.postOrderInfo(prodSpec)
+      },
+      async postOrderInfo (prodSpec) {
+        let deliveryType = this.activeName === 0 ? 1 : 2
+        let ret = await apiPostOrderInfo({
+          addressId: this.activeName === 0 ? this.selectedAddressInfo.id : '',
+          couponId: this.orderInfo.couponId,
+          deliveryTime: this.time,
+          deliveryType: deliveryType,
+          integral: 0,
+          prodSpec: prodSpec,
+          shoppingCarIds: this.shoppingCarIds,
+          siteId: this.activeName === 0 ? '' : this.listSites[this.defalutSitesIndex].id
+        })
+        if (ret.data.resultCode === '000001') {
+          this.loading = false
+          this.doUnifiedOrder(ret.data.resultObject)
+        } else {
+          this.loading = false
+          wx.showToast({
+            title: ret.data.resultObject,
+            icon: 'none'
+          })
+        }
+      },
+      async doUnifiedOrder (orderId) {
+        if (this.loading) return false
+        this.loading = true
+        let ret = await apiDoUnifiedOrder({
+          openId: this.userInfo.openId,
+          orderId: orderId
+        })
+        if (ret.data.resultCode === '000001') {
+          this.loading = false
+          let data = ret.data.resultObject
+          wx.requestPayment({
+            timeStamp: data.timeStamp,
+            nonceStr: data.nonceStr,
+            package: data.package,
+            signType: data.signType,
+            paySign: data.paySign,
+            success (res) {
+              wx.showToast({
+                title: '支付成功'
+              })
+              wx.redirectTo({
+                url: '/pages/orderDetail/main?id=' + orderId
+              })
+            },
+            fail (res) {
+              wx.showToast({
+                title: res,
+                icon: 'none'
+              })
+            }
+          })
+        } else {
+          this.loading = false
+          wx.showToast({
+            title: '提交失败',
+            icon: 'none'
+          })
+        }
+      },
+      chooseCoupon (couponId) {
+        let arr = []
+        for (let i = 0; i < this.shopList.length; i++) {
+          const element = this.shopList[i].prodId
+          arr.push(element)
+        }
+        wx.removeStorageSync('proIds')
+        wx.setStorageSync('proIds', arr)
+        wx.navigateTo({url: '/pages/card/main?canUse=1&couponId=' + couponId + '&fee=' + this.orderInfo.orderFee})
       }
     },
     mounted () {
@@ -188,24 +300,59 @@
       this.isShowTime = false
     },
     onShow () {
+      let couponInfo = wx.getStorageSync('couponInfo')
+      if (couponInfo) {
+        this.orderInfo.couponDenomination = couponInfo.denomination
+        this.orderInfo.couponId = couponInfo.id
+        this.orderInfo.couponName = couponInfo.couponName
+      }
       wx.setNavigationBarTitle({title: '提交订单'})
     },
     onLoad (options) {
       if (options.id) {
         this.selectedAddressInfo = {
           id: options.id,
-          address: options.address,
-          tel: options.tel,
+          code1: options.code1,
+          code2: options.code2,
+          code3: options.code3,
+          addressDetails: options.addressDetails,
+          telephone: options.telephone,
           name: options.name
         }
+      } else {
+        this.selectedAddressInfo = {}
       }
-      console.log(options)
+      this.orderInfo = wx.getStorageSync('shopCartList')
+      this.shopList = this.orderInfo.prodItemList.slice()
+      this.deliverTime = this.orderInfo.deliverTime.slice()
+      this.shoppingCarIds = this.orderInfo.shoppingCarIds.join()
+      if (this.orderInfo.availableCouponFlag === '1') {
+        this.hasCoupon = true
+      } else {
+        this.hasCoupon = false
+      }
+      if (this.orderInfo.address) {
+        this.selectedAddressInfo = {
+          id: this.orderInfo.address.id,
+          code1: this.orderInfo.address.code1,
+          code2: this.orderInfo.address.code2,
+          code3: this.orderInfo.address.code3,
+          addressDetails: this.orderInfo.address.addressDetails,
+          telephone: this.orderInfo.address.telephone,
+          name: this.orderInfo.address.name
+        }
+      }
+      for (let i = 0; i < this.shopList.length; i++) {
+        this.shopList[i].total = (this.shopList[i].num * this.shopList[i].price * 100) / 100
+      }
+      this.getAddress()
+      this.getListSites()
     }
   }
 </script>
 <style lang="less" scoped>
 .order-confirm{
-  height: 100%;
+  min-height: 100%;
   background:rgba(247,247,247,1);
   .line-box{
     font-size:78%;
@@ -249,6 +396,7 @@
   border-radius:6px;
   padding-bottom: 15px;
   background: white;
+  margin: 0 10px 60px 10px;
 }
 .wrapper{
   border-radius:16px 16px 0px 0px;
@@ -264,6 +412,7 @@
     overflow: hidden;
     position: relative;
     bottom: 10px;
+    height: 100%;
     .left {
       width: 70px;
       overflow: auto;
@@ -371,7 +520,7 @@
 		display: inline-block;
 		height:calc(44px);
 		text-align: center;
-		line-height: 44px;
+    line-height: 44px;
 	}
 }  
 </style>
